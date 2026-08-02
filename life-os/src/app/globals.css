@@ -23,8 +23,13 @@
   color-scheme: light dark;
 }
 
+/*
+ * Dark mode overrides the custom properties on :root, NOT via a nested @theme.
+ * Tailwind v4 hoists every @theme block to the top level, so a @theme inside a
+ * media query would apply unconditionally and the app would always render dark.
+ */
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root {
     --color-canvas: #141118;
     --color-surface: #1c1820;
     --color-surface-2: #241f2a;
