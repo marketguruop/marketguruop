@@ -31,11 +31,26 @@ if (!['sqlite', 'postgresql', 'mysql'].includes(provider)) {
 }
 
 const schema = readFileSync(schemaPath, 'utf8')
-const updated = schema.replace(/provider\s*=\s*"(sqlite|postgresql|mysql)"/, `provider = "${provider}"`)
+let updated = schema.replace(/provider\s*=\s*"(sqlite|postgresql|mysql)"/, `provider = "${provider}"`)
+
+/*
+ * Managed Postgres (Neon, Supabase) hands out two URLs: a pooled one for the
+ * app and a direct one for DDL. Schema changes through the pooler fail, so
+ * `directUrl` is injected when DIRECT_DATABASE_URL is present and removed
+ * otherwise — declaring it unconditionally would break local SQLite, where
+ * Prisma errors on a missing env var.
+ */
+const DIRECT_LINE = '  directUrl = env("DIRECT_DATABASE_URL")\n'
+const useDirect = provider !== 'sqlite' && Boolean(process.env.DIRECT_DATABASE_URL)
+
+updated = updated.replace(/^\s*directUrl\s*=\s*env\("DIRECT_DATABASE_URL"\)\n/m, '')
+if (useDirect) {
+  updated = updated.replace(/(url\s*=\s*env\("DATABASE_URL"\)\n)/, `$1${DIRECT_LINE}`)
+}
 
 if (updated === schema) {
-  console.log(`Prisma provider already set to "${provider}".`)
+  console.log(`Prisma provider already set to "${provider}"${useDirect ? ' with directUrl' : ''}.`)
 } else {
   writeFileSync(schemaPath, updated)
-  console.log(`Prisma provider set to "${provider}".`)
+  console.log(`Prisma provider set to "${provider}"${useDirect ? ' with directUrl' : ''}.`)
 }
