@@ -12,6 +12,9 @@ CRM, энергия — и несколько AI-агентов поверх в�
 
 ## Быстрый старт
 
+**С iPad или без компьютера** — см. [DEPLOY.md](DEPLOY.md): Codespaces за 5 минут
+или постоянный адрес на Vercel + Neon.
+
 ```bash
 cd life-os
 cp .env.example .env          # минимум: AUTH_SECRET

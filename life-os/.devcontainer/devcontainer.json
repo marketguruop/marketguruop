@@ -1,0 +1,19 @@
+{
+  "name": "EMILIYA LIFE OS",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}/life-os",
+  "postCreateCommand": "cp -n .env.example .env && sed -i \"s|^AUTH_SECRET=.*|AUTH_SECRET=\\\"$(openssl rand -hex 32)\\\"|\" .env && npm install && npm run setup",
+  "postAttachCommand": "npm run dev",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "LIFE OS",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["Prisma.prisma", "bradlc.vscode-tailwindcss"]
+    }
+  }
+}
