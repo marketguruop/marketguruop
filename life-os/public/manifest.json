@@ -1,0 +1,18 @@
+{
+  "name": "EMILIYA LIFE OS",
+  "short_name": "LIFE OS",
+  "description": "Персональная AI-система: задачи, календарь, контент, деньги и агенты.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf8f5",
+  "theme_color": "#a8577b",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

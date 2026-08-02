@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-sans: ui-sans-serif, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+
+  --color-canvas: #fbf8f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4efe9;
+  --color-line: #e6dcd2;
+  --color-ink: #221c22;
+  --color-ink-soft: #6b6169;
+  --color-accent: #a8577b;
+  --color-accent-soft: #f2e3ea;
+  --color-clay: #b98a6e;
+  --color-sage: #6e9b8a;
+  --color-alert: #c0453f;
+
+  --radius-card: 18px;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-canvas: #141118;
+    --color-surface: #1c1820;
+    --color-surface-2: #241f2a;
+    --color-line: #332d3a;
+    --color-ink: #f2ece9;
+    --color-ink-soft: #a49aa6;
+    --color-accent: #d98cae;
+    --color-accent-soft: #2e2130;
+  }
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Wide content scrolls inside its own container; the page body never does. */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+
+.hairline {
+  border-color: var(--color-line);
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
