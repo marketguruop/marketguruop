@@ -16,7 +16,7 @@ export interface AgentDefinition {
   name: string
   description: string
   systemPrompt: string
-  /** MVP agents write to the database; advisory agents only produce reports. */
+  /** How the agent acts: writes rows itself, or coordinates other agents. */
   mode: 'core' | 'advisory'
   maxSteps: number
 }
@@ -67,7 +67,7 @@ export const AGENTS: Record<AgentKey, AgentDefinition> = {
     name: 'Content Director',
     description: 'Превращает реальную жизнь в контент-план, хуки и сценарии.',
     systemPrompt: CONTENT_PROMPT,
-    mode: 'advisory',
+    mode: 'core',
     maxSteps: 2,
   },
   business: {
@@ -75,7 +75,7 @@ export const AGENTS: Record<AgentKey, AgentDefinition> = {
     name: 'Business & Marketing Agent',
     description: 'Ведёт рабочие проекты, ТЗ команде, отчёты и риски.',
     systemPrompt: BUSINESS_PROMPT,
-    mode: 'advisory',
+    mode: 'core',
     maxSteps: 2,
   },
   finance: {
@@ -83,7 +83,7 @@ export const AGENTS: Record<AgentKey, AgentDefinition> = {
     name: 'Finance Agent',
     description: 'Доходы, расходы, ожидаемые платежи, кассовые разрывы и подписки.',
     systemPrompt: FINANCE_PROMPT,
-    mode: 'advisory',
+    mode: 'core',
     maxSteps: 2,
   },
   energy: {
@@ -91,7 +91,7 @@ export const AGENTS: Record<AgentKey, AgentDefinition> = {
     name: 'Energy & Routine Agent',
     description: 'Сон, тренировки, энергия, привычки и минимальная версия дня.',
     systemPrompt: ENERGY_PROMPT,
-    mode: 'advisory',
+    mode: 'core',
     maxSteps: 2,
   },
   crm: {
@@ -99,7 +99,7 @@ export const AGENTS: Record<AgentKey, AgentDefinition> = {
     name: 'Contacts & CRM Agent',
     description: 'Контакты, договорённости, follow-up и черновики сообщений.',
     systemPrompt: CRM_PROMPT,
-    mode: 'advisory',
+    mode: 'core',
     maxSteps: 2,
   },
   automation: {
@@ -107,7 +107,7 @@ export const AGENTS: Record<AgentKey, AgentDefinition> = {
     name: 'Automation Agent',
     description: 'Ищет повторяющиеся действия и собирает сценарии автоматизации.',
     systemPrompt: AUTOMATION_PROMPT,
-    mode: 'advisory',
+    mode: 'core',
     maxSteps: 2,
   },
 }

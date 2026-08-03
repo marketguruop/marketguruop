@@ -1,17 +1,9 @@
-import { prisma } from '@/lib/db'
-import { logger } from '@/lib/logger'
-import { callStructured } from '@/lib/ai/client'
 import { AGENTS } from '@/lib/ai/registry'
-import { ADVISORY_JSON_SCHEMA, AdvisorySchema, type AdvisoryResult } from '@/lib/ai/schemas'
-import { buildContextBlock } from '@/lib/ai/memory'
-import { chargeRun, finishRun, recordAction, startRun } from '@/lib/ai/run'
 import { buildDailyBrief } from '@/lib/ai/agents/chief-of-staff'
 import { captureAndProcess } from '@/lib/ai/agents/inbox-agent'
-import { findDuplicateGroups, findStalledTasks } from '@/lib/services/tasks'
+import { isSpecialist, runSpecialist } from '@/lib/ai/agents/specialists'
 import { localDateKey } from '@/lib/dates'
 import type { AgentKey } from '@/lib/domain/enums'
-
-const log = logger('orchestrator')
 
 /**
  * The Chief of Staff decides which specialised agent handles a request.
@@ -50,141 +42,6 @@ export interface OrchestratorResult {
   text: string
   data?: unknown
   usedAi: boolean
-}
-
-export async function runAdvisory(
-  userId: string,
-  agentKey: AgentKey,
-  timezone: string,
-  question: string,
-): Promise<{ result: AdvisoryResult; usedAi: boolean; runId: string }> {
-  const definition = AGENTS[agentKey]
-  const run = await startRun({ userId, agentKey, trigger: 'manual', input: question })
-
-  try {
-    const context = await buildContextBlock(userId, timezone, question)
-    const domain = await loadDomainSnapshot(userId, agentKey)
-    const response = await callStructured({
-      system: definition.systemPrompt,
-      jsonSchema: ADVISORY_JSON_SCHEMA,
-      parser: AdvisorySchema,
-      maxTokens: 4000,
-      prompt: [
-        'Контекст пользователя:',
-        context,
-        '',
-        'Данные по твоей зоне ответственности:',
-        domain,
-        '',
-        `Запрос: ${question}`,
-        '',
-        'Дай короткий разбор и предложи задачи. Ничего не создавай сам.',
-      ].join('\n'),
-    })
-    chargeRun(run, response.costUsd)
-    await recordAction(run, { kind: 'analyze_text', reason: 'Аналитический отчёт' })
-    await finishRun(run, {
-      status: 'succeeded',
-      output: JSON.stringify(response.data),
-      inputTokens: response.inputTokens,
-      outputTokens: response.outputTokens,
-    })
-    return { result: response.data, usedAi: true, runId: run.id }
-  } catch (error) {
-    log.warn('advisory fallback', { agentKey, error: String(error) })
-    const fallback: AdvisoryResult = {
-      summary:
-        'AI недоступен (нет ANTHROPIC_API_KEY или запрос не удался) — показываю только детерминированные данные.',
-      findings: [],
-      proposedTasks: [],
-    }
-    await finishRun(run, { status: 'succeeded', output: JSON.stringify(fallback) })
-    return { result: fallback, usedAi: false, runId: run.id }
-  }
-}
-
-async function loadDomainSnapshot(userId: string, agentKey: AgentKey): Promise<string> {
-  switch (agentKey) {
-    case 'finance': {
-      const [incomes, invoices, subscriptions] = await Promise.all([
-        prisma.income.findMany({ where: { userId, deletedAt: null }, take: 30 }),
-        prisma.invoice.findMany({ where: { userId, deletedAt: null, status: 'unpaid' }, take: 20 }),
-        prisma.expense.findMany({ where: { userId, deletedAt: null, isSubscription: true }, take: 20 }),
-      ])
-      return [
-        `Доходы: ${incomes.map((i) => `${i.title} ${i.amount}${i.currency} (${i.status})`).join('; ') || 'нет'}`,
-        `Неоплаченные счета: ${invoices.map((i) => `${i.counterparty} ${i.amount}${i.currency}`).join('; ') || 'нет'}`,
-        `Подписки: ${subscriptions.map((e) => `${e.title} ${e.amount}${e.currency}`).join('; ') || 'нет'}`,
-      ].join('\n')
-    }
-    case 'content': {
-      const [ideas, items] = await Promise.all([
-        prisma.contentIdea.findMany({ where: { userId, deletedAt: null }, take: 20 }),
-        prisma.contentItem.findMany({ where: { userId, deletedAt: null }, take: 20 }),
-      ])
-      return [
-        `Идеи: ${ideas.map((i) => i.title).join('; ') || 'нет'}`,
-        `Материалы: ${items.map((i) => `${i.title} (${i.status})`).join('; ') || 'нет'}`,
-      ].join('\n')
-    }
-    case 'crm': {
-      const followUps = await prisma.followUp.findMany({
-        where: { userId, deletedAt: null, status: 'open' },
-        include: { contact: { select: { name: true } } },
-        take: 20,
-      })
-      return `Открытые follow-up: ${
-        followUps.map((f) => `${f.contact.name} — ${f.subject}`).join('; ') || 'нет'
-      }`
-    }
-    case 'energy': {
-      const [sleep, energy, workouts] = await Promise.all([
-        prisma.sleepLog.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 7 }),
-        prisma.energyLog.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 7 }),
-        prisma.workout.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 7 }),
-      ])
-      return [
-        `Сон (последние дни): ${sleep.map((s) => `${s.hours}ч`).join(', ') || 'нет данных'}`,
-        `Энергия: ${energy.map((e) => e.level).join(', ') || 'нет данных'}`,
-        `Тренировки: ${workouts.map((w) => `${w.kind}/${w.intensity}`).join(', ') || 'нет данных'}`,
-      ].join('\n')
-    }
-    case 'business': {
-      const projects = await prisma.project.findMany({
-        where: { userId, deletedAt: null, status: 'active' },
-        include: { _count: { select: { tasks: true } } },
-        take: 20,
-      })
-      return projects
-        .map(
-          (p) =>
-            `${p.name} — прогресс ${Math.round(p.progress * 100)}%, задач ${p._count.tasks}, следующий шаг: ${
-              p.nextAction ?? 'не задан'
-            }`,
-        )
-        .join('\n')
-    }
-    case 'automation': {
-      const [automations, automatable] = await Promise.all([
-        prisma.automation.findMany({ where: { userId, deletedAt: null }, take: 20 }),
-        prisma.task.findMany({ where: { userId, deletedAt: null, canAutomate: true }, take: 20 }),
-      ])
-      return [
-        `Существующие автоматизации: ${automations.map((a) => `${a.name} (${a.status})`).join('; ') || 'нет'}`,
-        `Задачи, помеченные как автоматизируемые: ${automatable.map((t) => t.title).join('; ') || 'нет'}`,
-      ].join('\n')
-    }
-    default: {
-      const [stalled, duplicates] = await Promise.all([
-        findStalledTasks(userId),
-        findDuplicateGroups(userId),
-      ])
-      return [
-        `Зависшие задачи: ${stalled.map((s) => `${s.title} (${s.reason})`).join('; ') || 'нет'}`,
-        `Возможные дубли: ${duplicates.map((g) => g.keepTitle).join('; ') || 'нет'}`,
-      ].join('\n')
-    }
-  }
 }
 
 /** Entry point used by the UI command palette and the Telegram bot. */
@@ -233,17 +90,29 @@ export async function routeRequest(
     }
   }
 
-  const advisory = await runAdvisory(userId, agentKey, timezone, input)
-  const lines = [
-    advisory.result.summary,
-    ...advisory.result.findings.map((f) => `[${f.severity}] ${f.title}: ${f.detail}`),
-    ...advisory.result.proposedTasks.map((t) => `+ задача: ${t.title} — ${t.nextAction}`),
-  ]
+  if (isSpecialist(agentKey)) {
+    const result = await runSpecialist(userId, agentKey, timezone, input)
+    const lines = [
+      result.summary,
+      ...result.findings.map((f) => `[${f.severity}] ${f.title}: ${f.detail}`),
+      ...result.created.map((c) => `+ ${c.type}: ${c.title}${c.note ? ` — ${c.note}` : ''}`),
+      ...result.skipped.map((s) => `· пропущено: ${s.title} (${s.reason})`),
+    ]
+    return {
+      agentKey,
+      agentName: definition.name,
+      text: lines.join('\n'),
+      data: result,
+      usedAi: result.usedAi,
+    }
+  }
+
+  // Calendar, task and review agents are driven from their own screens rather
+  // than free text; routing here would give the user nothing to act on.
   return {
     agentKey,
     agentName: definition.name,
-    text: lines.join('\n'),
-    data: advisory.result,
-    usedAi: advisory.usedAi,
+    text: `Агент «${definition.name}» работает из своего раздела, а не из свободного запроса.`,
+    usedAi: false,
   }
 }

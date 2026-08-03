@@ -127,15 +127,42 @@ export function SyncCalendarButton() {
   )
 }
 
-export function AgentConsole({ agentKey, name }: { agentKey?: string; name: string }) {
+interface AgentRunData {
+  summary?: string
+  usedAi: boolean
+  findings?: { title: string; detail: string; severity: 'info' | 'warning' | 'critical' }[]
+  created?: { type: string; id: string; title: string; note?: string }[]
+  skipped?: { title: string; reason: string }[]
+  text?: string
+}
+
+const SEVERITY_COLOR: Record<string, string> = {
+  info: 'text-[var(--color-ink-soft)]',
+  warning: 'text-[var(--color-clay)]',
+  critical: 'text-[var(--color-alert)]',
+}
+
+export function AgentConsole({
+  agentKey,
+  name,
+  placeholder,
+}: {
+  agentKey?: string
+  name: string
+  placeholder?: string
+}) {
   const [input, setInput] = useState('')
-  const [output, setOutput] = useState<string | null>(null)
+  const [result, setResult] = useState<AgentRunData | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [, startTransition] = useTransition()
+  const router = useRouter()
 
   async function run(): Promise<void> {
     if (!input.trim()) return
     setPending(true)
-    setOutput(null)
+    setError(null)
+    setResult(null)
     const response = await fetch('/api/agents/run', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -144,21 +171,32 @@ export function AgentConsole({ agentKey, name }: { agentKey?: string; name: stri
     const body = (await response.json()) as {
       ok: boolean
       error?: string
-      data?: { text: string; agentName?: string; usedAi: boolean }
+      data?: AgentRunData & { data?: AgentRunData }
     }
-    setOutput(body.ok && body.data ? body.data.text : (body.error ?? 'Ошибка запуска агента.'))
     setPending(false)
+    if (!body.ok || !body.data) {
+      setError(body.error ?? 'Не удалось запустить агента.')
+      return
+    }
+    // The routed shape nests the payload; the direct shape does not.
+    setResult(body.data.data ?? body.data)
+    // The agent writes rows, so the page behind the console is now stale.
+    startTransition(() => router.refresh())
   }
+
+  const created = result?.created ?? []
+  const findings = result?.findings ?? []
+  const skipped = result?.skipped ?? []
 
   return (
     <div className="card p-5">
-      <p className="text-sm text-[var(--color-ink-soft)]">Спросить: {name}</p>
+      <p className="text-sm text-[var(--color-ink-soft)]">Запустить: {name}</p>
       <textarea
         value={input}
         onChange={(event) => setInput(event.target.value)}
         rows={2}
         className="mt-2 w-full resize-none rounded-xl border border-[var(--color-line)] bg-[var(--color-canvas)] p-3 text-sm outline-none focus:border-[var(--color-accent)]"
-        placeholder="Например: что мне сегодня важнее всего?"
+        placeholder={placeholder ?? 'Например: что здесь требует внимания?'}
       />
       <button
         onClick={() => void run()}
@@ -167,10 +205,62 @@ export function AgentConsole({ agentKey, name }: { agentKey?: string; name: stri
       >
         {pending ? 'Работаю…' : 'Запустить'}
       </button>
-      {output ? (
-        <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-[var(--color-surface-2)] p-4 text-sm">
-          {output}
-        </pre>
+
+      {error ? <p className="mt-3 text-sm text-[var(--color-alert)]">{error}</p> : null}
+
+      {result ? (
+        <div className="mt-4 rounded-xl bg-[var(--color-surface-2)] p-4 text-sm">
+          <p className="font-medium">{result.summary ?? result.text}</p>
+          {!result.usedAi ? (
+            <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
+              Без AI: разбор по правилам системы, ключ Anthropic не настроен.
+            </p>
+          ) : null}
+
+          {findings.length > 0 ? (
+            <ul className="mt-3 space-y-1">
+              {findings.map((finding) => (
+                <li key={finding.title} className={SEVERITY_COLOR[finding.severity] ?? ''}>
+                  <span className="font-medium">{finding.title}:</span> {finding.detail}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {created.length > 0 ? (
+            <>
+              <p className="mt-3 text-xs uppercase tracking-wide text-[var(--color-ink-soft)]">
+                Создано
+              </p>
+              <ul className="mt-1 space-y-1">
+                {created.map((entity) => (
+                  <li key={entity.id}>
+                    <span className="text-[var(--color-accent)]">{entity.type}:</span> {entity.title}
+                    {entity.note ? (
+                      <span className="text-[var(--color-ink-soft)]"> — {entity.note}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+
+          {skipped.length > 0 ? (
+            <ul className="mt-2 space-y-0.5 text-xs text-[var(--color-ink-soft)]">
+              {skipped.map((item) => (
+                <li key={item.title}>
+                  пропущено: {item.title} ({item.reason})
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {created.length === 0 && findings.length === 0 && skipped.length === 0 ? (
+            <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+              Агент не нашёл, что создать — по этим данным всё в порядке.
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   )

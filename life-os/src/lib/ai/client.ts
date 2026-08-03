@@ -47,8 +47,12 @@ export interface StructuredCallOptions<T> {
   prompt: string
   /** JSON Schema handed to the API so the model cannot return free-form text. */
   jsonSchema: Record<string, unknown>
-  /** Zod parser mirroring the JSON Schema — the second line of defence. */
-  parser: z.ZodType<T>
+  /**
+   * Zod parser mirroring the JSON Schema — the second line of defence.
+   * The input side is `unknown` (it is parsed JSON), which also keeps `T`
+   * bound to the schema's *output* type when `.default()` is used.
+   */
+  parser: z.ZodType<T, z.ZodTypeDef, unknown>
   maxTokens?: number
   effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
   model?: string

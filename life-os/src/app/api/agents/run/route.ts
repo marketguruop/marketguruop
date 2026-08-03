@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { handle, isResponse, ok, parseBody, requireApiUser, guardRate } from '@/lib/api'
-import { routeRequest, runAdvisory } from '@/lib/ai/orchestrator'
+import { routeRequest } from '@/lib/ai/orchestrator'
+import { isSpecialist, runSpecialist } from '@/lib/ai/agents/specialists'
 import { AgentKey } from '@/lib/domain/enums'
 
 const RunSchema = z.object({
@@ -20,13 +21,20 @@ export async function POST(request: Request): Promise<Response> {
     const body = await parseBody(request, RunSchema)
     if (!body.ok) return body.response
 
-    if (body.data.agentKey && body.data.agentKey !== 'inbox' && body.data.agentKey !== 'chief_of_staff') {
-      const advisory = await runAdvisory(user.id, body.data.agentKey, user.timezone, body.data.input)
+    // An explicit agentKey bypasses routing — used by the per-section consoles.
+    if (body.data.agentKey && isSpecialist(body.data.agentKey)) {
+      const result = await runSpecialist(user.id, body.data.agentKey, user.timezone, body.data.input)
       return ok({
-        agentKey: body.data.agentKey,
-        usedAi: advisory.usedAi,
-        data: advisory.result,
-        text: advisory.result.summary,
+        agentKey: result.agentKey,
+        agentName: result.agentName,
+        usedAi: result.usedAi,
+        data: result,
+        text: [
+          result.summary,
+          ...result.findings.map((f) => `[${f.severity}] ${f.title}: ${f.detail}`),
+          ...result.created.map((c) => `+ ${c.type}: ${c.title}${c.note ? ` — ${c.note}` : ''}`),
+          ...result.skipped.map((s) => `· пропущено: ${s.title} (${s.reason})`),
+        ].join('\n'),
       })
     }
 

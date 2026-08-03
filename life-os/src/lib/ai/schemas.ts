@@ -212,9 +212,119 @@ export const TASK_TRIAGE_JSON_SCHEMA: Record<string, unknown> = {
   },
 }
 
+// ------------------------------------------------------------ Specialist writes
+// Content, Finance, CRM, Business, Energy and Automation return proposals in one
+// shared shape. A single materialiser turns them into rows, and anything
+// outward-facing is routed through the Approval Center instead of being applied.
+
+export const ProposalKind = z.enum([
+  'task',
+  'content_idea',
+  'content_item',
+  'follow_up',
+  'automation',
+  'project_update',
+  'note',
+])
+export type ProposalKind = z.infer<typeof ProposalKind>
+
+export const ProposalSchema = z.object({
+  kind: ProposalKind,
+  title: z.string().min(1).max(200),
+  detail: z.string().max(2000).nullable().optional(),
+  /** Why this is worth doing — shown to the user, never invented filler. */
+  reason: z.string().max(500),
+  priority: z.enum(['critical', 'high', 'medium', 'low', 'someday']).default('medium'),
+  estimatedMinutes: z.number().int().min(5).max(480).default(30),
+  /** Name of an existing project; unmatched names are ignored, never created. */
+  projectName: z.string().max(120).nullable().optional(),
+  contactName: z.string().max(120).nullable().optional(),
+  platform: z.enum(['instagram', 'reels', 'stories', 'tiktok', 'threads', 'telegram', 'youtube']).nullable().optional(),
+  hook: z.string().max(300).nullable().optional(),
+  script: z.string().max(2000).nullable().optional(),
+  shotList: z.array(z.string().max(160)).max(12).nullable().optional(),
+  dueAt: z.string().nullable().optional(),
+  shootAt: z.string().nullable().optional(),
+  publishAt: z.string().nullable().optional(),
+  savedMinutesPerWeek: z.number().int().min(0).max(600).nullable().optional(),
+  confidence: z.number().min(0).max(1).default(0.6),
+})
+export type Proposal = z.infer<typeof ProposalSchema>
+
+export const SpecialistSchema = z.object({
+  summary: z.string(),
+  findings: z.array(
+    z.object({
+      title: z.string(),
+      detail: z.string(),
+      severity: z.enum(['info', 'warning', 'critical']),
+    }),
+  ).max(8),
+  proposals: z.array(ProposalSchema).max(12),
+})
+export type SpecialistResult = z.infer<typeof SpecialistSchema>
+
+export const SPECIALIST_JSON_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'findings', 'proposals'],
+  properties: {
+    summary: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['title', 'detail', 'severity'],
+        properties: {
+          title: { type: 'string' },
+          detail: { type: 'string' },
+          severity: { type: 'string', enum: ['info', 'warning', 'critical'] },
+        },
+      },
+    },
+    proposals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'kind', 'title', 'detail', 'reason', 'priority', 'estimatedMinutes',
+          'projectName', 'contactName', 'platform', 'hook', 'script', 'shotList',
+          'dueAt', 'shootAt', 'publishAt', 'savedMinutesPerWeek', 'confidence',
+        ],
+        properties: {
+          kind: {
+            type: 'string',
+            enum: ['task', 'content_idea', 'content_item', 'follow_up', 'automation', 'project_update', 'note'],
+          },
+          title: { type: 'string' },
+          detail: { type: ['string', 'null'] },
+          reason: { type: 'string' },
+          priority: { type: 'string', enum: ['critical', 'high', 'medium', 'low', 'someday'] },
+          estimatedMinutes: { type: 'integer' },
+          projectName: { type: ['string', 'null'] },
+          contactName: { type: ['string', 'null'] },
+          platform: {
+            type: ['string', 'null'],
+            enum: ['instagram', 'reels', 'stories', 'tiktok', 'threads', 'telegram', 'youtube', null],
+          },
+          hook: { type: ['string', 'null'] },
+          script: { type: ['string', 'null'] },
+          shotList: { type: ['array', 'null'], items: { type: 'string' } },
+          dueAt: { type: ['string', 'null'], description: 'ISO 8601 или null' },
+          shootAt: { type: ['string', 'null'] },
+          publishAt: { type: ['string', 'null'] },
+          savedMinutesPerWeek: { type: ['integer', 'null'] },
+          confidence: { type: 'number' },
+        },
+      },
+    },
+  },
+}
+
 // ------------------------------------------------------------- Advisory report
-// Used by the agents that are read-only in the MVP (content, finance, CRM,
-// energy, business, automation). They produce structured advice, never writes.
+// Kept for callers that only want analysis without any write.
 
 export const AdvisorySchema = z.object({
   summary: z.string(),
