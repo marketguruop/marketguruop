@@ -806,6 +806,7 @@ export async function runSpecialist(
   let usedAi = false
   let inputTokens = 0
   let outputTokens = 0
+  let aiError: string | undefined
 
   try {
     const [context, domain] = await Promise.all([
@@ -840,6 +841,7 @@ export async function runSpecialist(
     chargeRun(run, response.costUsd)
   } catch (error) {
     log.warn('specialist fallback', { agentKey, error: String(error) })
+    aiError = String(error)
     result = await deterministicProposals(userId, agentKey, timezone)
   }
 
@@ -858,6 +860,8 @@ export async function runSpecialist(
       output: JSON.stringify({ summary: result.summary, created, skipped }),
       inputTokens,
       outputTokens,
+      // Recorded even though the run succeeded: the fallback is silent otherwise.
+      error: aiError,
     })
   } catch (error) {
     await finishRun(run, { status: 'failed', error: String(error) })

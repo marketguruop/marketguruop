@@ -113,7 +113,7 @@ export async function buildDailyBrief(
       entityId: dateKey,
       reason: 'Сводка без AI',
     })
-    await finishRun(run, { status: 'succeeded', output: JSON.stringify(brief) })
+    await finishRun(run, { status: 'succeeded', output: JSON.stringify(brief), error: String(error) })
     return { dateKey, plan, findings, brief, usedAi: false, runId: run.id }
   }
 }

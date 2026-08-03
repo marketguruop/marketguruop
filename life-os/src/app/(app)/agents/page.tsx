@@ -11,7 +11,7 @@ export default async function AgentsPage() {
   const user = await requireUser()
   const since = new Date(Date.now() - 30 * 86_400_000)
 
-  const [runs, actions, failures, totals] = await Promise.all([
+  const [runs, actions, failures, totals, lastAiError] = await Promise.all([
     prisma.agentRun.findMany({
       where: { userId: user.id },
       orderBy: { startedAt: 'desc' },
@@ -28,6 +28,13 @@ export default async function AgentsPage() {
       _sum: { costUsd: true, inputTokens: true, outputTokens: true },
       _count: true,
     }),
+    // A run can succeed on the deterministic fallback while the model call
+    // failed. Without surfacing this, a wrong API key is invisible.
+    prisma.agentRun.findFirst({
+      where: { userId: user.id, error: { not: null } },
+      orderBy: { startedAt: 'desc' },
+      select: { agentKey: true, error: true, startedAt: true },
+    }),
   ])
 
   return (
@@ -40,6 +47,23 @@ export default async function AgentsPage() {
             : 'ANTHROPIC_API_KEY не задан — агенты работают в детерминированном режиме'
         }
       />
+
+      {lastAiError ? (
+        <Card className="mb-4 border-[var(--color-alert)]">
+          <CardTitle>Вызов модели не прошёл</CardTitle>
+          <p className="text-sm">
+            Агент <span className="text-[var(--color-accent)]">{lastAiError.agentKey}</span> отработал
+            по правилам системы, потому что запрос к Anthropic не удался.
+          </p>
+          <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-[var(--color-surface-2)] p-3 text-xs">
+            {lastAiError.error}
+          </pre>
+          <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+            Частые причины: неверный или истёкший ключ, нет средств на балансе, нет доступа к сети.
+            Проверь <code>ANTHROPIC_API_KEY</code> и перезапусти приложение.
+          </p>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Запусков за 30 дней" value={totals._count} />

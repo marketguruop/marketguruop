@@ -38,7 +38,14 @@ async function parseText(
   userId: string,
   timezone: string,
   rawText: string,
-): Promise<{ result: InboxParseResult; usedAi: boolean; costUsd: number; inputTokens: number; outputTokens: number }> {
+): Promise<{
+  result: InboxParseResult
+  usedAi: boolean
+  costUsd: number
+  inputTokens: number
+  outputTokens: number
+  aiError?: string
+}> {
   const now = new Date()
   try {
     const context = await buildContextBlock(userId, timezone, rawText)
@@ -74,6 +81,7 @@ async function parseText(
       costUsd: 0,
       inputTokens: 0,
       outputTokens: 0,
+      aiError: String(error),
     }
   }
 }
@@ -139,6 +147,7 @@ export async function processInboxItem(userId: string, itemId: string): Promise<
       output: JSON.stringify({ summary: parsed.result.summary, created, skipped }),
       inputTokens: parsed.inputTokens,
       outputTokens: parsed.outputTokens,
+      error: parsed.aiError,
     })
 
     return {
