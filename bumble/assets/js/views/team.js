@@ -52,7 +52,7 @@ BOS.route('team', function (host) {
 
   if (view === 'board') {
     h += '<div class="filters"><button class="btn-gold" id="t-add">+ Задача</button>'
-      + '<span class="dim mono" style="font-size:11px;margin-left:10px">Карточки перетаскиваются между колонками</span></div>';
+      + '<span class="dim mono" style="font-size:11px;margin-left:10px">Карточки двигаются перетаскиванием или стрелками ‹ › — на планшете работают только стрелки</span></div>';
     h += UI.kanban(tasks, {});
 
   } else if (view === 'list') {

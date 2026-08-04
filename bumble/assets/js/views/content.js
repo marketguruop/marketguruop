@@ -88,11 +88,13 @@
       h += '<div class="kcol" data-status="' + c.id + '">'
         + '<div class="kcol-h">' + E(c.label) + '<span class="n">' + list.length + '</span></div><div class="kcol-b">'
         + list.map(function (i) {
+          var ci = UI.statusIndex(cols, c.id);
           return '<div class="kcard p-' + (i.priority || 'medium') + '" draggable="true" data-id="' + E(i.id) + '">'
             + '<div class="kt">' + E(i.title) + '</div><div class="km">'
             + (i.channel ? '<span>' + E(i.channel) + '</span>' : '')
             + (i.publishAt ? '<span>' + BOS.fmtDate(i.publishAt) + '</span>' : '')
             + '<span class="dim">' + E(UI.who(i.owner)) + '</span>'
+            + UI.moveBtns(i.id, ci, cols.length)
             + '</div></div>';
         }).join('') + '</div></div>';
     });
@@ -104,8 +106,12 @@
       root.querySelectorAll('.kcard').forEach(function (el) {
         el.addEventListener('dragstart', function () { drag = el.getAttribute('data-id'); el.classList.add('dragging'); });
         el.addEventListener('dragend', function () { el.classList.remove('dragging'); });
-        el.addEventListener('click', function () { contentModal(el.getAttribute('data-id')); });
+        el.addEventListener('click', function (e) {
+          if (e.target.closest && e.target.closest('.kmove')) return;
+          contentModal(el.getAttribute('data-id'));
+        });
       });
+      UI.bindMove(root, 'content', BOS.CONTENT_STATUS);
       root.querySelectorAll('.kcol').forEach(function (col) {
         col.addEventListener('dragover', function (e) { e.preventDefault(); col.classList.add('drop'); });
         col.addEventListener('dragleave', function () { col.classList.remove('drop'); });
@@ -174,7 +180,7 @@
 
     if (view === 'plan') {
       h += '<div class="filters"><button class="btn-gold" id="c-add">+ Контент</button>'
-        + '<span class="dim mono" style="font-size:11px;margin-left:10px">Карточки перетаскиваются между статусами</span></div>';
+        + '<span class="dim mono" style="font-size:11px;margin-left:10px">Карточки двигаются перетаскиванием или стрелками ‹ › — на планшете работают только стрелки</span></div>';
       h += contentKanban(items);
 
     } else if (view === 'cal') {

@@ -11,6 +11,16 @@
 <!-- Фавикон: восход в круге. Логотипа нет — по закону бренда его и не должно быть. -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='0' y2='0'%3E%3Cstop offset='0' stop-color='%23F6B54B'/%3E%3Cstop offset='.46' stop-color='%23FACE79'/%3E%3Cstop offset='1' stop-color='%23FDE0A6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='6' fill='%2314100E'/%3E%3Crect x='6' y='6' width='52' height='32' rx='4' fill='url(%23g)'/%3E%3Crect x='6' y='40' width='52' height='18' rx='4' fill='%23F23904'/%3E%3C/svg%3E">
 
+<!-- Добавление на домашний экран iPad/iPhone: запуск без адресной строки,
+     тёмная статус-строка, иконка «восход». -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Bumble OS">
+<meta name="format-detection" content="telephone=no">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500&display=swap" rel="stylesheet">

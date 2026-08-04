@@ -106,6 +106,21 @@ window.UI = (function () {
     return html;
   }
 
+  /* ── перемещение карточки без перетаскивания ─────────────────────
+     На iPad и iPhone HTML5 drag-and-drop не работает вообще, поэтому
+     у каждой карточки есть стрелки. На десктопе они тоже удобнее мыши,
+     когда нужно сдвинуть одну задачу на шаг. */
+  function statusIndex(list, id) {
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return i;
+    return 0;
+  }
+  function moveBtns(id, idx, total) {
+    return '<span class="kmove">'
+      + '<button class="kmv" data-mv="-1" data-mvid="' + E(id) + '"' + (idx <= 0 ? ' disabled' : '') + ' aria-label="Назад">‹</button>'
+      + '<button class="kmv" data-mv="1" data-mvid="' + E(id) + '"' + (idx >= total - 1 ? ' disabled' : '') + ' aria-label="Вперёд">›</button>'
+      + '</span>';
+  }
+
   /* ── канбан задач с перетаскиванием ──────────────────────────────── */
   function kanban(tasks, opts) {
     opts = opts || {};
@@ -119,6 +134,7 @@ window.UI = (function () {
         + list.map(function (t) {
           var left = BOS.daysLeft(t.due);
           var dueCls = left !== null && left < 0 ? 'overdue' : (left !== null && left <= 2 ? 'soon' : '');
+          var ci = statusIndex(BOS.STATUS, c.id);
           return '<div class="kcard p-' + (t.priority || 'medium') + '" draggable="true" data-id="' + E(t.id) + '">'
             + '<div class="kt">' + E(t.title) + '</div>'
             + '<div class="km">'
@@ -126,6 +142,7 @@ window.UI = (function () {
             + (t.assignee ? '<span>' + E(who(t.assignee)) + '</span>' : '')
             + (t.module ? '<span class="dim">' + E(t.module) + '</span>' : '')
             + (t.blocked ? '<span class="overdue">блок</span>' : '')
+            + moveBtns(t.id, ci, BOS.STATUS.length)
             + '</div></div>';
         }).join('')
         + '</div></div>';
@@ -148,11 +165,13 @@ window.UI = (function () {
         try { e.dataTransfer.setData('text/plain', dragId); } catch (err) { }
       });
       el.addEventListener('dragend', function () { el.classList.remove('dragging'); });
-      el.addEventListener('click', function () {
+      el.addEventListener('click', function (e) {
+        if (e.target.closest && e.target.closest('.kmove')) return;
         if (onOpen) onOpen(el.getAttribute('data-id'));
         else taskModal(el.getAttribute('data-id'));
       });
     });
+    bindMove(root, 'tasks', BOS.STATUS);
     root.querySelectorAll('.kcol').forEach(function (col) {
       col.addEventListener('dragover', function (e) { e.preventDefault(); col.classList.add('drop'); });
       col.addEventListener('dragleave', function () { col.classList.remove('drop'); });
@@ -162,6 +181,25 @@ window.UI = (function () {
         var id = dragId || e.dataTransfer.getData('text/plain');
         if (!id) return;
         BOS.patch('tasks', id, { status: col.getAttribute('data-status') });
+        BOS.render();
+      });
+    });
+  }
+
+  /** Стрелки на карточках: сдвигают статус на шаг влево или вправо. */
+  function bindMove(root, collection, statuses) {
+    if (!root) return;
+    root.querySelectorAll('.kmv').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (b.disabled) return;
+        var id = b.getAttribute('data-mvid');
+        var item = BOS.find(collection, id);
+        if (!item) return;
+        var i = statusIndex(statuses, item.status || statuses[0].id) + Number(b.getAttribute('data-mv'));
+        i = BOS.clamp(i, 0, statuses.length - 1);
+        BOS.patch(collection, id, { status: statuses[i].id });
+        toast(statuses[i].label || statuses[i].n);
         BOS.render();
       });
     });
@@ -381,6 +419,7 @@ window.UI = (function () {
     table: table, kanban: kanban, filters: filters, fval: fval,
     modal: modal, closeModal: closeModal, taskModal: taskModal,
     toast: toast, bindCopy: bindCopy, acc: acc, card: card, beanList: beanList,
-    empty: empty, who: who, peopleOptions: peopleOptions
+    empty: empty, who: who, peopleOptions: peopleOptions,
+    moveBtns: moveBtns, bindMove: bindMove, statusIndex: statusIndex
   };
 })();

@@ -1,0 +1,16 @@
+{
+  "name": "Bumble Marketing OS",
+  "short_name": "Bumble OS",
+  "description": "Операционная система маркетинга Bumble Coffee",
+  "start_url": "./index.html#/dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14100E",
+  "theme_color": "#14100E",
+  "lang": "ru",
+  "icons": [
+    { "src": "assets/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
