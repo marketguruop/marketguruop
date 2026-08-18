@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Секреты и локальная база — никогда в git
+.env
+.env.local
+.env.*.local
+*.db
+*.db-journal
+prisma/dev.db*
+
+.DS_Store
+*.log
+.vercel
+.turbo
+next-env.d.ts
+tsconfig.tsbuildinfo
+coverage/

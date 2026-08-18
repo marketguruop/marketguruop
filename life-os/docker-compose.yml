@@ -1,0 +1,29 @@
+# Локальная PostgreSQL для перехода с SQLite.
+# Запуск:  docker compose up -d
+# Затем:   в prisma/schema.prisma поставь provider = "postgresql",
+#          в .env — DATABASE_URL из комментария ниже, и выполни:
+#          npx prisma db push && npm run db:seed
+#
+# DATABASE_URL="postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lifeos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lifeos
+      POSTGRES_PASSWORD: lifeos
+      POSTGRES_DB: lifeos
+    ports:
+      - '5432:5432'
+    volumes:
+      - lifeos-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U lifeos -d lifeos']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  lifeos-pgdata:

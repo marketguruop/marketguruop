@@ -1,0 +1,890 @@
+// EMILIYA LIFE OS — schema.
+//
+// Provider is SQLite for the local MVP. The schema is deliberately written to be
+// PostgreSQL-compatible: no native enums, no scalar lists, no db-specific types.
+// Enum-like columns are `String` validated by Zod in src/lib/domain/enums.ts.
+// Switching to Postgres = change `provider` below + DATABASE_URL, then `prisma db push`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- core / identity
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  timezone     String    @default("Europe/Helsinki")
+  locale       String    @default("ru")
+  // JSON blob: working hours, preferred slots, hard rules.
+  preferences  String    @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  sessions       Session[]
+  goals          Goal[]
+  areas          Area[]
+  projects       Project[]
+  tasks          Task[]
+  events         CalendarEvent[]
+  timeBlocks     TimeBlock[]
+  inboxItems     InboxItem[]
+  notes          Note[]
+  contentIdeas   ContentIdea[]
+  contentItems   ContentItem[]
+  publications   Publication[]
+  contacts       Contact[]
+  followUps      FollowUp[]
+  incomes        Income[]
+  expenses       Expense[]
+  invoices       Invoice[]
+  habits         Habit[]
+  habitLogs      HabitLog[]
+  energyLogs     EnergyLog[]
+  sleepLogs      SleepLog[]
+  workouts       Workout[]
+  automations    Automation[]
+  agentRuns      AgentRun[]
+  approvals      ApprovalRequest[]
+  notifications  Notification[]
+  integrations   Integration[]
+  attachments    FileAttachment[]
+  weeklyReviews  WeeklyReview[]
+  dailyReviews   DailyReview[]
+  memories       MemoryEntry[]
+  auditLogs      AuditLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- structure
+
+model Area {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  color     String    @default("#B98A6E")
+  icon      String?
+  status    String    @default("active")
+  source    String    @default("manual")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals    Goal[]
+  projects Project[]
+  tasks    Task[]
+
+  @@index([userId, status])
+}
+
+model Goal {
+  id          String    @id @default(cuid())
+  userId      String
+  areaId      String?
+  title       String
+  description String?
+  horizon     String    @default("quarter") // week | month | quarter | year | life
+  metric      String?
+  targetValue Float?
+  currentValue Float    @default(0)
+  deadline    DateTime?
+  priority    String    @default("high")
+  status      String    @default("active")
+  source      String    @default("manual")
+  confidence  Float     @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area     Area?     @relation(fields: [areaId], references: [id])
+  projects Project[]
+  tasks    Task[]
+
+  @@index([userId, status])
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  userId      String
+  areaId      String?
+  goalId      String?
+  name        String
+  description String?
+  client      String?
+  goal        String?
+  nextAction  String?
+  risks       String?
+  members     String    @default("[]") // JSON array of strings
+  progress    Float     @default(0)
+  deadline    DateTime?
+  priority    String    @default("medium")
+  status      String    @default("active")
+  source      String    @default("manual")
+  confidence  Float     @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area         Area?          @relation(fields: [areaId], references: [id])
+  goalRef      Goal?          @relation(fields: [goalId], references: [id])
+  tasks        Task[]
+  contentIdeas ContentIdea[]
+  incomes      Income[]
+  expenses     Expense[]
+  invoices     Invoice[]
+  attachments  FileAttachment[]
+  contacts     ContactProject[]
+
+  @@index([userId, status])
+}
+
+// ---------------------------------------------------------------- tasks
+
+model Task {
+  id               String    @id @default(cuid())
+  userId           String
+  projectId        String?
+  areaId           String?
+  goalId           String?
+  title            String
+  description      String?
+  nextAction       String?
+  status           String    @default("inbox")
+  priority         String    @default("medium")
+  energy           String    @default("medium") // low | medium | high
+  context          String?   // deep | admin | calls | errand | creative
+  estimatedMinutes Int       @default(30)
+  actualMinutes    Int?
+  deadline         DateTime?
+  scheduledFor     DateTime?
+  completedAt      DateTime?
+  waitingOn        String?
+  delegatedTo      String?
+  canDelegate      Boolean   @default(false)
+  canAutomate      Boolean   @default(false)
+  deferCount       Int       @default(0)
+  dependsOnId      String?
+  needsClarification Boolean @default(false)
+  source           String    @default("manual")
+  confidence       Float     @default(1)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project?    @relation(fields: [projectId], references: [id])
+  area       Area?       @relation(fields: [areaId], references: [id])
+  goalRef    Goal?       @relation(fields: [goalId], references: [id])
+  dependsOn  Task?       @relation("TaskDeps", fields: [dependsOnId], references: [id])
+  dependents Task[]      @relation("TaskDeps")
+  subtasks   Subtask[]
+  timeBlocks TimeBlock[]
+
+  @@index([userId, status])
+  @@index([userId, deadline])
+}
+
+model Subtask {
+  id          String    @id @default(cuid())
+  taskId      String
+  title       String
+  done        Boolean   @default(false)
+  orderIndex  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+// ---------------------------------------------------------------- calendar
+
+model CalendarEvent {
+  id              String    @id @default(cuid())
+  userId          String
+  externalId      String? // Google Calendar event id — dedupe key
+  calendarId      String?
+  title           String
+  description     String?
+  location        String?
+  startsAt        DateTime
+  endsAt          DateTime
+  timezone        String    @default("Europe/Helsinki")
+  allDay          Boolean   @default(false)
+  travelMinutes   Int       @default(0)
+  prepMinutes     Int       @default(0)
+  recoveryMinutes Int       @default(0)
+  attendees       String    @default("[]") // JSON array
+  isConfirmed     Boolean   @default(true)
+  hasOtherPeople  Boolean   @default(false)
+  status          String    @default("confirmed")
+  source          String    @default("manual")
+  confidence      Float     @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timeBlocks TimeBlock[]
+
+  @@unique([userId, externalId])
+  @@index([userId, startsAt])
+}
+
+model TimeBlock {
+  id        String    @id @default(cuid())
+  userId    String
+  taskId    String?
+  eventId   String?
+  title     String
+  kind      String    @default("focus") // focus | admin | buffer | travel | prep | meal | sport | recovery | meeting
+  load      String    @default("medium") // low | medium | high
+  startsAt  DateTime
+  endsAt    DateTime
+  score     Float     @default(0)
+  locked    Boolean   @default(false)
+  status    String    @default("planned")
+  source    String    @default("planner")
+  confidence Float    @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task  Task?          @relation(fields: [taskId], references: [id])
+  event CalendarEvent? @relation(fields: [eventId], references: [id])
+
+  @@index([userId, startsAt])
+}
+
+// ---------------------------------------------------------------- capture
+
+model InboxItem {
+  id          String    @id @default(cuid())
+  userId      String
+  rawText     String
+  kind        String    @default("text") // text | voice | link | photo | file
+  channel     String    @default("web") // web | telegram | shortcut | api
+  status      String    @default("pending") // pending | processing | processed | failed | dismissed
+  summary     String?
+  result      String? // JSON: what the Inbox Agent produced
+  createdEntities String @default("[]") // JSON array of {type,id,title}
+  confidence  Float     @default(0)
+  needsClarification Boolean @default(false)
+  source      String    @default("manual")
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model Note {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  tags      String    @default("[]")
+  status    String    @default("active")
+  source    String    @default("manual")
+  confidence Float    @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------- content
+
+model ContentIdea {
+  id          String    @id @default(cuid())
+  userId      String
+  projectId   String?
+  title       String
+  hook        String?
+  angle       String?
+  pillar      String? // work | business | beauty | sport | fame | travel | style | money | insight | humor | backstage
+  platforms   String    @default("[]") // JSON array
+  status      String    @default("idea")
+  priority    String    @default("medium")
+  source      String    @default("manual")
+  confidence  Float     @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project?    @relation(fields: [projectId], references: [id])
+  items ContentItem[]
+
+  @@index([userId, status])
+}
+
+model ContentItem {
+  id          String    @id @default(cuid())
+  userId      String
+  ideaId      String?
+  title       String
+  platform    String    @default("instagram")
+  format      String    @default("reels") // reels | stories | post | video | text
+  script      String?
+  shotList    String?   // JSON array
+  caption     String?
+  shootAt     DateTime?
+  publishAt   DateTime?
+  status      String    @default("planned")
+  source      String    @default("manual")
+  confidence  Float     @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idea         ContentIdea?  @relation(fields: [ideaId], references: [id])
+  publications Publication[]
+
+  @@index([userId, status])
+}
+
+model Publication {
+  id          String    @id @default(cuid())
+  userId      String
+  contentItemId String
+  platform    String
+  url         String?
+  publishedAt DateTime?
+  views       Int       @default(0)
+  likes       Int       @default(0)
+  comments    Int       @default(0)
+  saves       Int       @default(0)
+  shares      Int       @default(0)
+  status      String    @default("scheduled")
+  source      String    @default("manual")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentItem ContentItem @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
+
+  @@index([userId, publishedAt])
+}
+
+// ---------------------------------------------------------------- CRM
+
+model Contact {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  role          String?
+  company       String?
+  telegram      String?
+  instagram     String?
+  email         String?
+  phone         String?
+  notes         String?
+  tags          String    @default("[]")
+  lastContactAt DateTime?
+  status        String    @default("active")
+  source        String    @default("manual")
+  confidence    Float     @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  followUps FollowUp[]
+  projects  ContactProject[]
+
+  @@index([userId, status])
+}
+
+model ContactProject {
+  contactId String
+  projectId String
+  role      String?
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, projectId])
+}
+
+model FollowUp {
+  id          String    @id @default(cuid())
+  userId      String
+  contactId   String
+  subject     String
+  agreement   String?
+  draftMessage String?
+  dueAt       DateTime?
+  status      String    @default("open") // open | done | overdue | cancelled
+  source      String    @default("manual")
+  confidence  Float     @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+// ---------------------------------------------------------------- finance
+
+model Income {
+  id          String    @id @default(cuid())
+  userId      String
+  projectId   String?
+  title       String
+  category    String    @default("other") // salary | ads | ugc | project | other
+  amount      Float
+  currency    String    @default("EUR")
+  receivedAt  DateTime?
+  expectedAt  DateTime?
+  status      String    @default("expected") // expected | received | cancelled
+  source      String    @default("manual")
+  confidence  Float     @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId, status])
+}
+
+model Expense {
+  id           String    @id @default(cuid())
+  userId       String
+  projectId    String?
+  title        String
+  category     String    @default("other")
+  amount       Float
+  currency     String    @default("EUR")
+  spentAt      DateTime?
+  isSubscription Boolean @default(false)
+  isRecurring  Boolean   @default(false)
+  status       String    @default("planned")
+  source       String    @default("manual")
+  confidence   Float     @default(1)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId, status])
+}
+
+model Invoice {
+  id         String    @id @default(cuid())
+  userId     String
+  projectId  String?
+  number     String?
+  counterparty String
+  amount     Float
+  currency   String    @default("EUR")
+  issuedAt   DateTime?
+  dueAt      DateTime?
+  paidAt     DateTime?
+  status     String    @default("unpaid") // unpaid | paid | overdue | cancelled
+  source     String    @default("manual")
+  confidence Float     @default(1)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId, status])
+}
+
+// ---------------------------------------------------------------- energy & routine
+
+model Habit {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  cadence   String    @default("daily")
+  targetPerWeek Int   @default(7)
+  status    String    @default("active")
+  source    String    @default("manual")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs HabitLog[]
+
+  @@index([userId, status])
+}
+
+model HabitLog {
+  id        String   @id @default(cuid())
+  userId    String
+  habitId   String
+  date      DateTime
+  done      Boolean  @default(true)
+  note      String?
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+}
+
+model EnergyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  level     Int // 1..5
+  mood      String?
+  note      String?
+  status    String   @default("logged")
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model SleepLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  hours     Float
+  quality   Int      @default(3)
+  bedtime   String?
+  wakeTime  String?
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Workout {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  kind      String // run | strength | yoga | walk | other
+  intensity String   @default("medium")
+  minutes   Int      @default(45)
+  note      String?
+  status    String   @default("planned")
+  source    String   @default("manual")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+// ---------------------------------------------------------------- automation & agents
+
+model Automation {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  description   String?
+  trigger       String // schedule | webhook | event
+  triggerConfig String    @default("{}")
+  actions       String    @default("[]") // JSON array of action descriptors
+  integration   String? // telegram | google_calendar | notion | sheets | gmail | zapier | make
+  savedMinutesPerWeek Int @default(0)
+  riskLevel     String    @default("low")
+  enabled       Boolean   @default(false)
+  status        String    @default("draft")
+  lastRunAt     DateTime?
+  lastError     String?
+  errorCount    Int       @default(0)
+  source        String    @default("manual")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model Agent {
+  id           String   @id @default(cuid())
+  key          String   @unique // chief_of_staff | inbox | calendar | ...
+  name         String
+  description  String
+  model        String   @default("claude-opus-5")
+  effort       String   @default("high")
+  maxSteps     Int      @default(6)
+  enabled      Boolean  @default(true)
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  runs AgentRun[]
+}
+
+model AgentRun {
+  id           String    @id @default(cuid())
+  userId       String
+  agentId      String?
+  agentKey     String
+  trigger      String    @default("manual") // manual | telegram | schedule | orchestrator
+  input        String
+  output       String?
+  status       String    @default("running") // running | succeeded | failed | cancelled
+  steps        Int       @default(0)
+  inputTokens  Int       @default(0)
+  outputTokens Int       @default(0)
+  costUsd      Float     @default(0)
+  error        String?
+  parentRunId  String?
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent   Agent?        @relation(fields: [agentId], references: [id])
+  actions AgentAction[]
+  approvals ApprovalRequest[]
+
+  @@index([userId, startedAt])
+}
+
+model AgentAction {
+  id          String   @id @default(cuid())
+  runId       String
+  agentKey    String
+  kind        String // create_task | update_task | create_event | send_message | ...
+  entityType  String?
+  entityId    String?
+  payload     String   @default("{}")
+  riskLevel   String   @default("safe") // safe | confirm | forbidden
+  status      String   @default("applied") // applied | pending_approval | rejected | failed | skipped
+  reason      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+model ApprovalRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  runId       String?
+  agentKey    String
+  title       String
+  summary     String
+  actionKind  String
+  payload     String    @default("{}")
+  riskLevel   String    @default("confirm")
+  preview     String?   // human-readable "what will change / why / conflicts"
+  conflicts   String    @default("[]")
+  status      String    @default("pending") // pending | approved | rejected | expired | applied | failed
+  decidedAt   DateTime?
+  appliedAt   DateTime?
+  error       String?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  run  AgentRun? @relation(fields: [runId], references: [id])
+
+  @@index([userId, status])
+}
+
+// ---------------------------------------------------------------- memory
+
+model MemoryEntry {
+  id         String    @id @default(cuid())
+  userId     String
+  layer      String    @default("long") // short | working | long
+  key        String
+  value      String
+  category   String    @default("fact") // goal | preference | rule | pattern | fact
+  weight     Float     @default(1)
+  tags       String    @default("[]")
+  expiresAt  DateTime?
+  status     String    @default("active")
+  source     String    @default("manual")
+  confidence Float     @default(1)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, layer, key])
+  @@index([userId, layer])
+}
+
+// ---------------------------------------------------------------- infra
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  kind      String    @default("info") // info | warning | risk | approval
+  link      String?
+  readAt    DateTime?
+  status    String    @default("unread")
+  source    String    @default("system")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model Integration {
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String // google_calendar | gmail | telegram | notion | sheets | zapier | make | shortcuts
+  displayName  String?
+  externalId   String?
+  // Tokens are stored here only when the deployment provides ENCRYPTION_KEY.
+  accessToken  String?
+  refreshToken String?
+  expiresAt    DateTime?
+  scopes       String    @default("[]")
+  config       String    @default("{}")
+  status       String    @default("disconnected")
+  lastSyncAt   DateTime?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+model FileAttachment {
+  id         String    @id @default(cuid())
+  userId     String
+  projectId  String?
+  entityType String?
+  entityId   String?
+  filename   String
+  mimeType   String
+  sizeBytes  Int       @default(0)
+  url        String
+  status     String    @default("active")
+  source     String    @default("manual")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@index([userId])
+}
+
+model DailyReview {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime
+  mainGoal   String?
+  outcomes   String   @default("[]")
+  wins       String?
+  blockers   String?
+  energy     Int?
+  loadScore  Float    @default(0)
+  summary    String?
+  status     String   @default("open")
+  source     String   @default("manual")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model WeeklyReview {
+  id         String   @id @default(cuid())
+  userId     String
+  weekStart  DateTime
+  goals      String   @default("[]")
+  summary    String?
+  wins       String?
+  risks      String?
+  loadScore  Float    @default(0)
+  status     String   @default("open")
+  source     String   @default("manual")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  actor      String   @default("user") // user | agent:<key> | system
+  action     String // create | update | delete | approve | reject | sync
+  entityType String
+  entityId   String
+  before     String?
+  after      String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
