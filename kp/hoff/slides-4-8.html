@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 720pt 405pt; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, "Liberation Sans", sans-serif; }
+
+  .slide{
+    position:relative; width:960px; height:540px;
+    background:#F7F4EF; overflow:hidden;
+    page-break-after:always; break-after:page;
+  }
+  .slide:last-child{ page-break-after:auto; break-after:auto; }
+
+  .railing{ position:absolute; left:0; top:0; width:14px; height:540px; background:#FF6B3D; }
+
+  .eyebrow{
+    position:absolute; left:44px; top:53px;
+    font-size:10px; font-weight:bold; color:#FF6B3D;
+    letter-spacing:.16em; line-height:1;
+  }
+  .title{
+    position:absolute; left:44px; top:75px; width:872px;
+    font-size:27px; font-weight:bold; color:#0D1B2A; line-height:1.2;
+  }
+
+  .card{ position:absolute; background:#fff; border-radius:12px; padding:17px 18px; }
+  .card.dark{ background:#0D1B2A; }
+
+  .kicker{ font-size:9px; font-weight:bold; color:#8C99A6; letter-spacing:.15em; line-height:1; }
+  .dark .kicker{ color:#7E8C9B; }
+  .stat{ font-size:30px; font-weight:bold; color:#FF6B3D; line-height:1.12; margin-top:4.5px; }
+  .stat.ink{ color:#0D1B2A; }
+  .stat.sm{ font-size:24px; color:#fff; margin-top:6px; }
+  .note{ font-size:11px; color:#5B6B7B; line-height:1.4; margin-top:6.5px; }
+  .dark .note{ color:#A9B6C4; }
+
+  /* ---- client strip (slide 4) ---- */
+  .clients{ position:absolute; left:44px; width:872px; }
+  .clients .kicker{ margin-bottom:11px; }
+  .chips{ display:flex; gap:10px; }
+  .chip{
+    background:#fff; border-radius:8px; height:34px;
+    display:flex; align-items:center; padding:0 16px;
+    font-size:12px; font-weight:bold; color:#0D1B2A; white-space:nowrap;
+  }
+
+  /* ---- feature card internals (slide 8) ---- */
+  .dash{ width:26px; height:4px; border-radius:2px; background:#FF6B3D; }
+  .dash.teal{ background:#14B8A6; }
+  .ctitle{ font-size:14.5px; font-weight:bold; color:#0D1B2A; margin-top:10px; }
+  .cbody{ font-size:11.5px; color:#5B6B7B; line-height:1.45; margin-top:8px; }
+  .blist{ list-style:none; margin-top:10px; }
+  .blist li{
+    font-size:11.5px; color:#5B6B7B; line-height:1.45;
+    padding-left:14px; position:relative; margin-bottom:5px;
+  }
+  .blist li:last-child{ margin-bottom:0; }
+  .blist li::before{
+    content:"•"; position:absolute; left:0; top:0;
+    color:#FF6B3D; font-weight:bold;
+  }
+  .blist.teal li::before{ color:#14B8A6; }
+  .blist b{ color:#0D1B2A; }
+
+  .metric{
+    background:#F2EEE6; border-radius:8px; padding:10px 13px; margin-top:10px;
+    display:flex; align-items:center; gap:14px;
+  }
+  .metric .big{ font-size:26px; font-weight:bold; color:#FF6B3D; line-height:1.1; white-space:nowrap; }
+  .metric .cap{ font-size:11px; color:#5B6B7B; line-height:1.4; }
+
+  /* ---- callout strip ---- */
+  .callout{
+    position:absolute; left:44px; top:449px; width:872px; height:39px;
+    background:#EDE8DF; border-left:4px solid #FF6B3D; border-radius:3px;
+    display:flex; align-items:center; padding:0 14px;
+    font-size:11.5px; color:#3E4C5A;
+  }
+  .callout b{ color:#0D1B2A; }
+
+  .foot{
+    position:absolute; left:88px; top:508px;
+    font-size:8.5px; font-weight:bold; color:#9AA5B1; letter-spacing:.18em;
+  }
+  .pagenum{ position:absolute; right:26px; top:508px; font-size:9px; color:#B6BEC7; }
+</style>
+</head>
+<body>
+
+<!-- ============ SLIDE 4 ============ -->
+<section class="slide">
+  <div class="railing"></div>
+  <div class="eyebrow">МАСШТАБ И ПРИЗНАНИЕ</div>
+  <div class="title">Через MarketGuru проходит рекламный бюджет<br>крупнейших селлеров Wildberries</div>
+
+  <div class="clients" style="top:168px;">
+    <div class="kicker">НАМ ДОВЕРЯЮТ</div>
+    <div class="chips">
+      <div class="chip">Splat</div>
+      <div class="chip">Kari</div>
+      <div class="chip">Zarina</div>
+      <div class="chip">Befree</div>
+      <div class="chip">Технопарк</div>
+      <div class="chip">Melon Fashion Group</div>
+    </div>
+  </div>
+
+  <div class="card" style="left:44px; top:246px; width:255.7px; height:126.4px;">
+    <div class="kicker">РЕКЛАМНЫЙ БЮДЖЕТ</div>
+    <div class="stat">&gt; 1,5 млрд ₽</div>
+    <div class="note">открутили продавцы на WB через MarketGuru за прошлый месяц</div>
+  </div>
+
+  <div class="card" style="left:313.7px; top:246px; width:255.7px; height:126.4px;">
+    <div class="kicker">КАМПАНИИ</div>
+    <div class="stat ink">&gt; 65 000</div>
+    <div class="note">активных рекламных кампаний под управлением сервиса</div>
+  </div>
+
+  <div class="card dark" style="left:583.5px; top:246px; width:332.5px; height:126.4px;">
+    <div class="kicker">НЕЗАВИСИМЫЕ РЕЙТИНГИ</div>
+    <div class="stat sm">1-е место</div>
+    <div class="note">в обзорах сервисов аналитики маркетплейсов «Бизнес-Секреты» и «ПланФакт» — по функционалу, поддержке API и числу сотрудников в одном аккаунте.</div>
+  </div>
+
+  <div class="callout"><span>Для Hoff это означает, что рекламой магазина будет управлять инструмент, <b>обкатанный на бюджетах такого же порядка</b>.</span></div>
+  <div class="foot">MARKETGURU × HOFF</div>
+  <div class="pagenum">4</div>
+</section>
+
+<!-- ============ SLIDE 8 ============ -->
+<section class="slide">
+  <div class="railing"></div>
+  <div class="eyebrow">ВОЗМОЖНОСТИ · 4 / 4</div>
+  <div class="title">Финансы, поставки и ценообразование</div>
+
+  <div class="card" style="left:44px; top:176px; width:429.1px; height:249px;">
+    <div class="dash"></div>
+    <div class="ctitle">Реальная чистая прибыль и допоставки</div>
+    <div class="cbody">«Рука на пульсе»: полный учёт денег, остатков и прогнозов. Видно чистую прибыль, маржинальность, ДРР от заказов и от продаж, финансовые риски и убыточные позиции.</div>
+    <ul class="blist">
+      <li>Себестоимость, комиссия WB, логистика, хранение, штрафы</li>
+      <li>Упущенная прибыль и выручка</li>
+      <li>Сколько товара нужно допоставить и на какой склад</li>
+    </ul>
+  </div>
+
+  <div class="card" style="left:486.9px; top:176px; width:429.1px; height:249px;">
+    <div class="dash teal"></div>
+    <div class="ctitle">Репрайсер: цены каждые 30 минут</div>
+    <div class="cbody">Автоматическая корректировка цен в реальном времени — чтобы всегда быть в топе и не уходить в минус. СПП и WB-кошелёк учитываются.</div>
+    <ul class="blist teal">
+      <li><b>Стратегия по конкурентам</b> — следим за выбранными конкурентами и держим цену на 1 ₽ ниже, чтобы забирать клик и заказ.</li>
+      <li><b>Стратегия изменения цены по времени</b> — цена меняется по расписанию, что поднимает среднюю медианную цену продажи.</li>
+    </ul>
+    <div class="metric">
+      <div class="big">+3–5%</div>
+      <div class="cap">дополнительной маржи за счёт автоматического управления ценой</div>
+    </div>
+  </div>
+
+  <div class="callout"><span>Каждое изменение цены логируется: <b>дата, старая и новая цена, причина и сработавшая стратегия</b>.</span></div>
+  <div class="foot">MARKETGURU × HOFF</div>
+  <div class="pagenum">8</div>
+</section>
+
+</body>
+</html>
